@@ -4,13 +4,13 @@ from flask import Flask, request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-TOKEN = os.getenv("BOT_TOKEN")  # en Railway/Render se pone como variable de entorno
+TOKEN = os.getenv("BOT_TOKEN")  # en Railway/Render se define como variable de entorno
 PORT = int(os.getenv("PORT", 8080))
 
-# Archivo local donde se guardan puntos
+# Archivo local para guardar puntos
 DATA_FILE = "puntos.json"
 
-# Inicializar datos
+# Cargar o inicializar puntos
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
         puntos = json.load(f)
@@ -21,8 +21,27 @@ def guardar_puntos():
     with open(DATA_FILE, "w") as f:
         json.dump(puntos, f, indent=2)
 
-# Comando: /añadir <cantidad> <casa>
-async def añadir(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# --- Helper para verificar admins ---
+async def es_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Devuelve True si el usuario que ejecuta el comando es admin del chat."""
+    chat = update.effective_chat
+    user = update.effective_user
+
+    if chat.type in ["group", "supergroup"]:
+        admins = await context.bot.get_chat_administrators(chat.id)
+        admin_ids = [a.user.id for a in admins]
+        return user.id in admin_ids
+    else:
+        # Si es chat privado, consideramos admin al dueño del bot
+        return True
+
+# --- Comandos ---
+# /sumar <cantidad> <casa>
+async def sumar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await es_admin(update, context):
+        await update.message.reply_text("❌ Solo los administradores pueden usar este comando.")
+        return
+
     try:
         cantidad = int(context.args[0])
         casa = context.args[1].lower()
@@ -33,19 +52,47 @@ async def añadir(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         puntos[casa] += cantidad
         guardar_puntos()
-        await update.message.reply_text(f"✅ Se añadieron {cantidad} puntos a {casa.capitalize()}.\nTotal: {puntos[casa]}")
+        await update.message.reply_text(
+            f"✅ Se sumaron {cantidad} puntos a {casa.capitalize()}.\n"
+            f"Total: {puntos[casa]}"
+        )
     except (IndexError, ValueError):
-        await update.message.reply_text("Uso correcto: /añadir <cantidad> <casa>")
+        await update.message.reply_text("Uso correcto: /sumar <cantidad> <casa>")
 
-# Comando: /puntos
+# /restar <cantidad> <casa>
+async def restar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await es_admin(update, context):
+        await update.message.reply_text("❌ Solo los administradores pueden usar este comando.")
+        return
+
+    try:
+        cantidad = int(context.args[0])
+        casa = context.args[1].lower()
+
+        if casa not in puntos:
+            await update.message.reply_text("❌ Casa no válida. Usa gryffindor, slytherin, ravenclaw o hufflepuff.")
+            return
+
+        puntos[casa] -= cantidad
+        guardar_puntos()
+        await update.message.reply_text(
+            f"✅ Se restaron {cantidad} puntos a {casa.capitalize()}.\n"
+            f"Total: {puntos[casa]}"
+        )
+    except (IndexError, ValueError):
+        await update.message.reply_text("Uso correcto: /restar <cantidad> <casa>")
+
+# /puntos → todos pueden ver
 async def puntos_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ranking = "\n".join([f"{c.capitalize()}: {p}" for c, p in puntos.items()])
     await update.message.reply_text(f"🏆 Puntos actuales:\n{ranking}")
 
-# Flask app para webhook
+# --- Telegram + Flask ---
 app = Flask(__name__)
 telegram_app = Application.builder().token(TOKEN).build()
-telegram_app.add_handler(CommandHandler("añadir", añadir))
+
+telegram_app.add_handler(CommandHandler("sumar", sumar))
+telegram_app.add_handler(CommandHandler("restar", restar))
 telegram_app.add_handler(CommandHandler("puntos", puntos_cmd))
 
 @app.route(f"/{TOKEN}", methods=["POST"])
