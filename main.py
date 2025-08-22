@@ -6,7 +6,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 # --- Configuración ---
 TOKEN = os.getenv("BOT_TOKEN")  # tu token de Telegram
 PORT = int(os.getenv("PORT", 8080))
-APP_URL = os.getenv("APP_URL")  # URL pública de tu app en Railway, ej: https://telegrambotcounterforhouses-production.up.railway.app
+APP_URL = os.getenv("APP_URL")  # URL pública de tu app en Railway
 admin_ids_env = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS = [int(x) for x in admin_ids_env.split(",") if x.strip()]
 
