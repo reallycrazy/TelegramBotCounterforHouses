@@ -15,12 +15,17 @@ ADMIN_IDS = [int(x) for x in admin_ids_env.split(",") if x.strip()]
 # Archivo local para guardar puntos
 DATA_FILE = "puntos.json"
 
-# Cargar o inicializar puntos
+# Cargar o inicializar puntos con tus casas personalizadas
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
         puntos = json.load(f)
 else:
-    puntos = {"gryffindor": 0, "slytherin": 0, "ravenclaw": 0, "hufflepuff": 0}
+    puntos = {
+        "ryutherwing": 0,
+        "kurynpurr": 0,
+        "rowenmaw": 0,
+        "baltopaw": 0
+    }
 
 def guardar_puntos():
     with open(DATA_FILE, "w") as f:
@@ -56,7 +61,9 @@ async def sumar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         casa = context.args[1].lower()
 
         if casa not in puntos:
-            await update.message.reply_text("❌ Casa no válida. Usa gryffindor, slytherin, ravenclaw o hufflepuff.")
+            await update.message.reply_text(
+                "❌ Casa no válida. Usa: ryutherwing, kurynpurr, rowenmaw, baltopaw."
+            )
             return
 
         puntos[casa] += cantidad
@@ -79,7 +86,9 @@ async def restar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         casa = context.args[1].lower()
 
         if casa not in puntos:
-            await update.message.reply_text("❌ Casa no válida. Usa gryffindor, slytherin, ravenclaw o hufflepuff.")
+            await update.message.reply_text(
+                "❌ Casa no válida. Usa: ryutherwing, kurynpurr, rowenmaw, baltopaw."
+            )
             return
 
         puntos[casa] -= cantidad
@@ -112,7 +121,7 @@ def webhook():
 
 @app.route("/")
 def index():
-    return "Bot de puntos Harry Potter corriendo!"
+    return "Bot de puntos ReallyCrazyLabs corriendo!"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=PORT)
