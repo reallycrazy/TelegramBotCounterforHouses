@@ -4,8 +4,13 @@ from flask import Flask, request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-TOKEN = os.getenv("BOT_TOKEN")  # en Railway/Render se define como variable de entorno
+TOKEN = os.getenv("BOT_TOKEN")  # tu token de Telegram
 PORT = int(os.getenv("PORT", 8080))
+
+# --- Leer admins desde variable de entorno ---
+# Poner en el hosting: 123456789,987654321,...
+admin_ids_env = os.getenv("ADMIN_IDS", "")
+ADMIN_IDS = [int(x) for x in admin_ids_env.split(",") if x.strip()]
 
 # Archivo local para guardar puntos
 DATA_FILE = "puntos.json"
@@ -23,17 +28,21 @@ def guardar_puntos():
 
 # --- Helper para verificar admins ---
 async def es_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Devuelve True si el usuario que ejecuta el comando es admin del chat."""
-    chat = update.effective_chat
-    user = update.effective_user
+    """Devuelve True si el usuario es admin del chat o está en la lista de ADMIN_IDS"""
+    user_id = update.effective_user.id
 
+    # Verificar lista blanca
+    if user_id in ADMIN_IDS:
+        return True
+
+    # Verificar admins del grupo
+    chat = update.effective_chat
     if chat.type in ["group", "supergroup"]:
         admins = await context.bot.get_chat_administrators(chat.id)
         admin_ids = [a.user.id for a in admins]
-        return user.id in admin_ids
-    else:
-        # Si es chat privado, consideramos admin al dueño del bot
-        return True
+        return user_id in admin_ids
+
+    return False
 
 # --- Comandos ---
 # /sumar <cantidad> <casa>
